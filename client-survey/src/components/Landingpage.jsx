@@ -1,7 +1,7 @@
 
 import "@fortawesome/fontawesome-free/css/all.min.css";
 import "../App.css";
-import React, {useState} from 'react';
+import React, {useEffect, useState} from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from "../global/NavBar";
 import banner from "../images/banner.png";
@@ -13,33 +13,39 @@ const description = [
     "Let us journey together to a greater MSU-IIT!"
   ];
   
-  // Static data for dropdown options
-  const officeOptions = [
-    {id: 1 , officeName:"Accounting Division"},
-    {id: 2 , officeName:"Alumni and Endowment Fund Center"},
-    {id: 3 , officeName:"CED - Integrated Development School"},
-    {id: 3 , officeName:"Center for Advanced Education and Lifelong Learning"},
-    {id: 3 , officeName:"Center for Information and Communication Techonology"},
-    {id: 3 , officeName:"College of Education"},
-    {id: 3 , officeName:"Hostel"},
-    {id: 3 , officeName:"HR Management Division"},
-    {id: 3 , officeName:"Infrastructure Services Division"},
-    {id: 3 , officeName:"Knowledge and Technology Transfer Office"},
-    {id: 3 , officeName:"Legal Services Office"},
-    {id: 3 , officeName:"MSU-IIT Center for Resiliency"},
-
-  ];
 const LandingPage = () => {
     const navigate = useNavigate();
     const [selectedOffice, setSelectedOffice] = useState("");
+    const [offices, setOffices] = useState([]);
 
-    const handleNext = () => {
+    //fetch offices from backend
+    useEffect(() => {
+        const fetchOffices = async () => {
+          try {
+            const response = await fetch("http://localhost:5000/api/offices");
+            if (!response.ok) {
+              throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+            const data = await response.json();
+            console.log("Fetched offices:", data); // Debugging
+            setOffices(data);
+          } catch (error) {
+            console.error("Error fetching offices:", error);
+          }
+        };
+      
+        fetchOffices();
+      }, []);
+      
+
+      const handleNext = () => {
+        const surveyId = 1; // Change this to dynamically fetch surveyId if needed
         if (selectedOffice) {
-            navigate(`/office/${selectedOffice}`); // Dynamically insert the office ID
+            navigate(`/office/${selectedOffice}/survey/${surveyId}`);
         } else {
             alert("Please select an office first.");
         }
-    };
+      };
     return (
         <div>
             <Navbar/>
@@ -60,8 +66,8 @@ const LandingPage = () => {
                 <div className="survey-dropdown">
                 <select value={selectedOffice} onChange={(e) => setSelectedOffice(e.target.value)}>
                 <option value="">-- Choose --</option>
-                {officeOptions.map((office) => (
-                    <option key={office.id} value={office.id}>{office.officeName}</option>
+                {offices.map((office) => (
+                    <option key={office.id} value={office.id}>{office.name}</option>
                 ))}
             </select>
                 </div>

@@ -9,7 +9,7 @@ function App() {
       <Routes>
         <Route path="/" element={<AdminLogin />} />
         <Route path="/clientsurvey" element={<LandingPage />} />
-        <Route path="/office/:officeId" element={<OfficeSurvey />} />
+        <Route path="/office/:officeId/survey/:surveyId" element={<OfficeSurvey />} />
       </Routes>
     </Router>
   );
