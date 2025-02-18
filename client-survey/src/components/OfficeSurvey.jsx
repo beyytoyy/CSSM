@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import NavBarQuest from "../global/NavBarQuest";
 import axios from "axios";
 
@@ -13,6 +13,7 @@ const surveyQuestions3Optional = [
 
 const OfficeSurvey = () => {
     const { surveyId, officeId } = useParams();
+    const navigate = useNavigate();
     const [office, setOffice] = useState(null);
     const [loading, setLoading] = useState(true);
     const [responses, setResponses] = useState({});
@@ -41,6 +42,10 @@ const OfficeSurvey = () => {
     const [selectedSurveyId, setSelectedSurveyId] = useState(null);
     const [selectedOfficeId, setSelectedOfficeId] = useState(null);
     const [selectedAnswers, setSelectedAnswers] = useState([]);
+    const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+    const [responseId, setResponseId] = useState(null);
+    const [isValidationModalOpen, setIsValidationModalOpen] = useState(false);
+    const [validationMessage, setValidationMessage] = useState("");
 
     useEffect(() => {
         const fetchOffice = async () => {
@@ -147,8 +152,44 @@ const OfficeSurvey = () => {
       
         fetchQuestionById();
       }, [surveyId]);       
+
+      const validateStep = () => {
+        if (step === 1) {
+            // Validate step 1 fields
+            if (!clientType || !roleType || !sexType || !collegeType || !age || !residenceType || !selectedService) {
+                setValidationMessage("Please fill in all required fields in Step 1.");
+                setIsValidationModalOpen(true);
+                return false;
+            }
+        } else if (step === 2) {
+            // Validate step 2 fields
+            const allAnswered = questionById.every(question => {
+                return responses[question.id]; // Check if each question has a response
+            });
+            if (!allAnswered) {
+                setValidationMessage("Please answer all questions in Step 2.");
+                setIsValidationModalOpen(true);
+                return false;
+            }
+        } else if (step === 3) {
+            // Validate step 3 fields
+            const allAnswered = questionByType.every(question => {
+                return responses[question.id]; // Check if each question has a response
+            });
+            if (!allAnswered) {
+                setValidationMessage("Please answer all questions in Step 3.");
+                setIsValidationModalOpen(true);
+                return false;
+            }
+        }
+        return true; // All validations passed
+    };
    
-    const handleNext = () => setStep(step + 1);
+    const handleNext = () => {
+        if (validateStep()) {
+            setStep(step + 1);
+        }
+    };
     const handleBack = () => setStep(step - 1);
 
     const handleCheckboxChange = (e) => {
@@ -179,7 +220,14 @@ const OfficeSurvey = () => {
     
 
     const handleSubmit = async () => {
-
+        // Validate all required fields before submission
+        if (!validateStep()) {
+            return; // If validation fails, do not proceed with submission
+        }
+    
+        // Trim and convert roleType to lowercase
+        roleType.trim().toLowerCase();
+    
         console.log("Submitting with these answers:", {
             survey_id: selectedSurveyId,
             office_id: selectedOfficeId,
@@ -191,7 +239,7 @@ const OfficeSurvey = () => {
             email: email,
             phone: phone,
             comment: comment,
-            answers: selectedAnswers.map(answer => ({ questionId: answer.questionId, answer: answer.value })), // Adjust as needed
+            answers: selectedAnswers.map(answer => ({ questionId: answer.questionId, answer: answer.value })),
         });
     
         try {
@@ -206,20 +254,26 @@ const OfficeSurvey = () => {
                 email: email,
                 phone: phone,
                 comment: comment,
-                answers: selectedAnswers || [],  // Ensure it's an array
+                answers: selectedAnswers,
             });
     
-            console.log("Response Data:", response.data);
-            alert("Survey response submitted successfully!");
-            setIsModalOpen(false);
+            console.log("Response Data:", response);
+            const id = response.data.response_id; // Adjust based on your actual response structure
+            setResponseId(id);
+            setIsSuccessModalOpen(true); // Open the success modal
+            setIsModalOpen(false); // Close the previous modal
         } catch (error) {
             console.error("Error submitting survey response:", error.response?.data || error.message);
             alert("Failed to submit survey response.");
         }
     };
+
+    const closeSuccessModal = () => {
+        setIsSuccessModalOpen(false);
+        navigate("/clientsurvey"); // Navigate to /clientsurvey after closing the modal
+    };
         
     
-
     if (loading) {
         return <h2>Loading office details...</h2>;
     }
@@ -453,7 +507,7 @@ const OfficeSurvey = () => {
                                     <input 
                                     type="radio" 
                                     name={`question_${question.id}`} 
-                                    value={option.id} 
+                                    value={option.text} 
                                     onChange={(e) => handleAnswerChange(question.id, e.target.value)}
                                     />
                                     {option.text}
@@ -475,7 +529,7 @@ const OfficeSurvey = () => {
                                     <input 
                                     type="radio" 
                                     name={`question_${questionById[2].id}`} 
-                                    value={option.id} 
+                                    value={option.text} 
                                     onChange={(e) => handleAnswerChange(questionById[2].id, e.target.value)}
                                     />
                                     {option.text}
@@ -636,15 +690,55 @@ const OfficeSurvey = () => {
 
                     {step < 3 ? (
                         <button className="next-button" onClick={handleNext}>
-                        Next
-                    </button>
+                            Next
+                        </button>
                     ) : (
-                        <button className="next-button" onClick={() => setIsModalOpen(true)}>
-                        Submit
+                        <button 
+                            className="next-button" 
+                            onClick={() => {
+                                if (validateStep()) {
+                                    setIsModalOpen(true); // Open the modal if validation passes
+                                } else {
+                                    alert("Please fill in all required fields before submitting."); // Alert if validation fails
+                                }
+                            }} 
+                        >
+                            Submit
                         </button>
                     )}
                     </div>
-                    
+                    {/* Success Modal */}
+                    {isSuccessModalOpen && (
+                        <div className="modal-overlay">
+                            <div className="modal-content">
+                                <h2 className="modal-title">Submission Successful</h2>
+                                <p className="modal-text">
+                                    Survey response submitted successfully! Your reference number is {responseId}.
+                                </p>
+                                <div className="modal-buttons">
+                                    <button className="confirm-btn" onClick={closeSuccessModal}>
+                                        Close
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Validation Modal */}
+                    {isValidationModalOpen && (
+                        <div className="modal-overlay">
+                            <div className="modal-content">
+                                <h2 className="modal-title">Validation Error</h2>
+                                <p className="modal-text">{validationMessage}</p>
+                                <div className="modal-buttons">
+                                    <button className="confirm-btn" onClick={() => setIsValidationModalOpen(false)}>
+                                        Close
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     {isModalOpen && (
                         <div className="modal-overlay">
                             <div className="modal-content">
@@ -683,7 +777,7 @@ const OfficeSurvey = () => {
                             </div>
                         </div>
                     )}
-
+                    
         </div>
       );
 };
